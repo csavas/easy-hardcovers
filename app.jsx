@@ -61,6 +61,77 @@ const renderInputField = (id, label, value, colorClass) => `
     </div>
 `;
 
+const renderFinalDimensions = (dims) => {
+    const { boardW, boardH, spineW, gutter, boundaryW, fabricW, fabricH } = dims;
+    const unit = appState.displayUnit;
+    const unitButtons = ['mm', 'cm'].map((unitOption) => `
+        <button
+            type="button"
+            data-unit="${unitOption}"
+            aria-pressed="${unit === unitOption}"
+            class="rounded-md px-3 py-1 text-sm font-medium ${unit === unitOption ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}"
+        >${unitOption}</button>
+    `).join('');
+
+    return `
+        <div class="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
+            <h2 class="text-lg font-semibold text-slate-700">Final Dimensions</h2>
+            <div class="flex gap-1" role="group" aria-label="Measurement units">
+                ${unitButtons}
+            </div>
+        </div>
+        <div class="space-y-2 text-sm text-slate-700">
+            <p><strong class="text-board-item">Cover Board:</strong> ${formatMeasurement(boardW)} × ${formatMeasurement(boardH)} ${unit}</p>
+            <p><strong class="text-calculated-item">Spine (s):</strong> ${formatMeasurement(spineW)} ${unit}</p>
+            <p><strong class="text-calculated-item">Gutter (g):</strong> ${formatMeasurement(gutter)} ${unit}</p>
+            <hr class="my-2 border-slate-200" />
+            <p class="font-semibold"><strong>Total Fabric:</strong> ${formatMeasurement(fabricW)} × ${formatMeasurement(fabricH)} ${unit}</p>
+            <p class="font-semibold"><strong>Cover Board Boundaries:</strong> ${formatMeasurement(boundaryW)} × ${formatMeasurement(boardH)} ${unit}</p>
+        </div>
+    `;
+};
+
+const renderKeyFormulas = (dims) => {
+    const { pageW, blockT, coverMargin, boardW, boardT, spineW, gutter, fabricMargin, fabricW } = dims;
+    const unit = appState.displayUnit;
+
+    return `
+        <div class="bg-slate-50 p-1.5 rounded">
+            <strong class="text-board-item">Board Width:</strong>
+            ${formatMeasurement(pageW)} - 0.5×${formatMeasurement(blockT)} + ${formatMeasurement(coverMargin)} = <strong>${formatMeasurement(boardW)} ${unit}</strong>
+        </div>
+        <div class="bg-slate-50 p-1.5 rounded">
+            <strong class="text-calculated-item">Spine:</strong>
+            ${formatMeasurement(blockT)} + 2×${formatMeasurement(boardT)} = <strong>${formatMeasurement(spineW)} ${unit}</strong>
+        </div>
+        <div class="bg-slate-50 p-1.5 rounded">
+            <strong class="text-calculated-item">Gutter:</strong>
+            ${formatMeasurement(blockT)} / 2 + ${formatMeasurement(boardT)} = <strong>${formatMeasurement(gutter)} ${unit}</strong>
+        </div>
+        <div class="bg-slate-50 p-1.5 rounded">
+            <strong>Fabric Width:</strong>
+            2×${formatMeasurement(boardW)} + ${formatMeasurement(spineW)} + 2×${formatMeasurement(gutter)} + 2×${formatMeasurement(fabricMargin)} = <strong>${formatMeasurement(fabricW)} ${unit}</strong>
+        </div>
+    `;
+};
+
+const updateCalculatedViews = () => {
+    const dims = getCalculatedDimensions(appState);
+    const finalDimensions = document.getElementById('final-dimensions');
+    const keyFormulas = document.getElementById('key-formulas');
+    const flatLayout = document.getElementById('flat-layout');
+
+    if (finalDimensions) {
+        finalDimensions.innerHTML = renderFinalDimensions(dims);
+    }
+    if (keyFormulas) {
+        keyFormulas.innerHTML = renderKeyFormulas(dims);
+    }
+    if (flatLayout) {
+        flatLayout.innerHTML = renderFlatLayoutSVG(dims);
+    }
+};
+
 const renderFlatLayoutSVG = (dims) => {
     if (dims.fabricW <= 0 || dims.fabricH <= 0) {
         return '';
@@ -139,17 +210,6 @@ const renderApp = () => {
     }
 
     const dims = getCalculatedDimensions(appState);
-    const { boardW, boardH, spineW, gutter, boundaryW, fabricW, fabricH, pageW, blockT, boardT, coverMargin, fabricMargin } = dims;
-    const unit = appState.displayUnit;
-    const unitButtons = ['mm', 'cm'].map((unitOption) => `
-        <button
-            type="button"
-            data-unit="${unitOption}"
-            aria-pressed="${unit === unitOption}"
-            class="rounded-md px-3 py-1 text-sm font-medium ${unit === unitOption ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}"
-        >${unitOption}</button>
-    `).join('');
-
     root.innerHTML = `
         <div class="min-h-screen bg-slate-50 p-2 sm:p-4">
             <div class="max-w-7xl mx-auto">
@@ -180,42 +240,14 @@ const renderApp = () => {
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-lg shadow-sm p-4">
-                            <div class="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
-                                <h2 class="text-lg font-semibold text-slate-700">Final Dimensions</h2>
-                                <div class="flex gap-1" role="group" aria-label="Measurement units">
-                                    ${unitButtons}
-                                </div>
-                            </div>
-                            <div class="space-y-2 text-sm text-slate-700">
-                                <p><strong class="text-board-item">Cover Board:</strong> ${formatMeasurement(boardW)} × ${formatMeasurement(boardH)} ${unit}</p>
-                                <p><strong class="text-calculated-item">Spine (s):</strong> ${formatMeasurement(spineW)} ${unit}</p>
-                                <p><strong class="text-calculated-item">Gutter (g):</strong> ${formatMeasurement(gutter)} ${unit}</p>
-                                <hr class="my-2 border-slate-200" />
-                                <p class="font-semibold"><strong>Total Fabric:</strong> ${formatMeasurement(fabricW)} × ${formatMeasurement(fabricH)} ${unit}</p>
-                                <p class="font-semibold"><strong>Cover Board Boundaries:</strong> ${formatMeasurement(boundaryW)} × ${formatMeasurement(boardH)} ${unit}</p>
-                            </div>
+                        <div id="final-dimensions" class="bg-white rounded-lg shadow-sm p-4">
+                            ${renderFinalDimensions(dims)}
                         </div>
 
                         <div class="bg-white rounded-lg shadow-sm p-3">
                             <h2 class="text-lg font-semibold text-slate-700 border-b border-slate-200 pb-1 mb-2">Key Formulas</h2>
-                            <div class="space-y-1 text-[11px] leading-tight">
-                                <div class="bg-slate-50 p-1.5 rounded">
-                                    <strong class="text-board-item">Board Width:</strong>
-                                    ${formatMeasurement(pageW)} - 0.5×${formatMeasurement(blockT)} + ${formatMeasurement(coverMargin)} = <strong>${formatMeasurement(boardW)} ${unit}</strong>
-                                </div>
-                                <div class="bg-slate-50 p-1.5 rounded">
-                                    <strong class="text-calculated-item">Spine:</strong>
-                                    ${formatMeasurement(blockT)} + 2×${formatMeasurement(boardT)} = <strong>${formatMeasurement(spineW)} ${unit}</strong>
-                                </div>
-                                <div class="bg-slate-50 p-1.5 rounded">
-                                    <strong class="text-calculated-item">Gutter:</strong>
-                                    ${formatMeasurement(blockT)} / 2 + ${formatMeasurement(boardT)} = <strong>${formatMeasurement(gutter)} ${unit}</strong>
-                                </div>
-                                <div class="bg-slate-50 p-1.5 rounded">
-                                    <strong>Fabric Width:</strong>
-                                    2×${formatMeasurement(boardW)} + ${formatMeasurement(spineW)} + 2×${formatMeasurement(gutter)} + 2×${formatMeasurement(fabricMargin)} = <strong>${formatMeasurement(fabricW)} ${unit}</strong>
-                                </div>
+                            <div id="key-formulas" class="space-y-1 text-[11px] leading-tight">
+                                ${renderKeyFormulas(dims)}
                             </div>
                         </div>
                     </div>
@@ -230,7 +262,7 @@ const renderApp = () => {
 
                         <div class="bg-white rounded-lg shadow-lg p-4 flex flex-col">
                             <h3 class="text-center font-semibold text-slate-700 mb-3 text-lg">Live Updating Flat Layout</h3>
-                            <div class="flex-grow min-h-0">
+                            <div id="flat-layout" class="flex-grow min-h-0">
                                 ${renderFlatLayoutSVG(dims)}
                             </div>
                         </div>
@@ -247,16 +279,17 @@ const renderApp = () => {
             const parsedValue = Number.parseFloat(value);
             const conversionFactor = appState.displayUnit === 'cm' ? 10 : 1;
             appState[name] = Number.isFinite(parsedValue) ? parsedValue * conversionFactor : 0;
-            renderApp();
+            updateCalculatedViews();
         });
     });
 
-    root.querySelectorAll('button[data-unit]').forEach((button) => {
-        button.addEventListener('click', () => {
+    root.onclick = (event) => {
+        const button = event.target.closest('button[data-unit]');
+        if (button) {
             appState.displayUnit = button.dataset.unit;
             renderApp();
-        });
-    });
+        }
+    };
 };
 
 document.addEventListener('DOMContentLoaded', renderApp);
